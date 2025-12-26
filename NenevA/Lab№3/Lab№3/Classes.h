@@ -89,7 +89,7 @@ const T& TStack<T> ::top() const {
 
 class TPostfix {
 private:
-    std::map<std::string, double> variables;
+    std::vector<std::pair<std::string, double>> variables;
 
     // Проверка на бинарный оператор
     bool isBinaryOperator(const std::string& token) const;
@@ -371,13 +371,22 @@ double TPostfix::evaluatePostfix(const std::vector<Token>& postfixTokens) {
             stack.push(std::stod(token.value));
         }
         else if (isVariable(token.value)) {
-            if (variables.find(token.value) == variables.end()) {
+            bool found = false;
+            for (const auto& p : variables) {
+                if (p.first == token.value) {
+                    stack.push(p.second);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
                 double value;
                 std::cout << "Enter value for variable '" << token.value << "': ";
                 std::cin >> value;
-                variables[token.value] = value;
+                std::pair<std::string, double> p(token.value, value);
+                variables.push_back(p);
+                stack.push(value);
             }
-            stack.push(variables[token.value]);
         }
         else if (isFunction(token.value)) {
             if (stack.size() < 1) {
@@ -397,7 +406,8 @@ double TPostfix::evaluatePostfix(const std::vector<Token>& postfixTokens) {
                 if (stack.size() < 1) {
                     throw ExpressionError("Not enough operands for unary operator '-'", { token.start_pos });
                 }
-                double operand = stack.top(); stack.pop();
+                double operand = stack.top(); 
+                stack.pop();
                 stack.push(-operand);
             }
             // Обработка бинарного оператора
@@ -405,8 +415,10 @@ double TPostfix::evaluatePostfix(const std::vector<Token>& postfixTokens) {
                 if (stack.size() < 2) {
                     throw ExpressionError("Not enough operands for operator '" + token.value + "'", { token.start_pos });
                 }
-                double operand2 = stack.top(); stack.pop();
-                double operand1 = stack.top(); stack.pop();
+                double operand2 = stack.top(); 
+                stack.pop();
+                double operand1 = stack.top(); 
+                stack.pop();
 
                 if (token.value == "+") {
                     stack.push(operand1 + operand2);
@@ -466,11 +478,23 @@ std::vector<Token> TPostfix::tokenize(const std::string& expression) {
 }
 
 void TPostfix::setVariable(const std::string& name, double value) {
-    variables[name] = value;
+    for (auto& p : variables) {
+        if (p.first == name) {
+            p.second = value;
+            return; // Для выхода из функции 
+        }
+    }
+    std::pair<std::string, double> p(name, value);
+    variables.push_back(p);
 }
 
 bool TPostfix::hasVariable(const std::string& name) const {
-    return variables.find(name) != variables.end();
+    for (const auto& p : variables) {
+        if (p.first == name) {
+            return true;
+        }
+    }
+    return false;
 }
 
 double TPostfix::evaluate(const std::string& expression) {
